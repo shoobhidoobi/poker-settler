@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Poker Settler</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d2e;
+      --surface2: #22263a;
+      --green: #2ecc71;
+      --green-dim: #1a5c38;
+      --red: #e74c3c;
+      --red-dim: #5c1a1a;
+      --gold: #f0c040;
+      --text: #e8e8f0;
+      --muted: #888aaa;
+      --border: #2e3150;
+      --r: 12px;
+      --r-sm: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px;
+      text-align: center;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; color: var(--gold); }
+
+    /* ─── Views ─── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ─── Entry view ─── */
+    #entry-view { padding: 16px; }
+
+    .player-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .player-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 600;
+      width: 52px;
+      flex-shrink: 0;
+      text-align: center;
+    }
+
+    .dir-toggle {
+      display: flex;
+      border-radius: var(--r-sm);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .dir-btn {
+      padding: 11px 15px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      background: var(--surface2);
+      color: var(--muted);
+      transition: background 0.1s, color 0.1s;
+      letter-spacing: 0.03em;
+      line-height: 1;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .dir-btn.up.on  { background: var(--green); color: #000; }
+    .dir-btn.down.on { background: var(--red);  color: #fff; }
+
+    .amt-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      color: var(--text);
+      font-size: 1.2rem;
+      font-weight: 600;
+      padding: 10px 12px;
+      outline: none;
+      text-align: right;
+      min-width: 0;
+    }
+    .amt-input:focus { border-color: var(--gold); }
+    .amt-input::placeholder { color: var(--muted); font-weight: 400; font-size: 0.95rem; }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 8px 4px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .remove-btn:active { color: var(--red); }
+
+    /* ─── Add player / balance ─── */
+    .add-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0 14px;
+      padding-left: 60px;
+    }
+    .add-btn {
+      background: none;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: var(--r-sm);
+      padding: 9px 16px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .add-btn:active { color: var(--green); border-color: var(--green); }
+    .add-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .balance-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      transition: border-color 0.2s;
+    }
+    .balance-label { font-size: 0.8rem; color: var(--muted); }
+    .balance-hint  { font-size: 0.72rem; color: var(--muted); }
+    .balance-val {
+      font-size: 1rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+    .balance-val.ok  { color: var(--green); }
+    .balance-val.bad { color: var(--red);   }
+
+    .settle-btn {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      border-radius: var(--r);
+      border: none;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--green);
+      color: #000;
+      letter-spacing: 0.02em;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .settle-btn:active { transform: scale(0.98); }
+    .settle-btn:disabled {
+      background: var(--surface2);
+      color: var(--muted);
+      cursor: not-allowed;
+    }
+
+    /* ─── Results view ─── */
+    #results-view { padding: 16px; }
+
+    .results-back {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.9rem;
+      cursor: pointer;
+      padding: 0 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .standings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .standings-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .standing-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    .standing-row:last-child { border-bottom: none; }
+    .standing-who { color: var(--muted); }
+    .standing-amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .standing-amt.up   { color: var(--green); }
+    .standing-amt.down { color: var(--red); }
+    .standing-amt.zero { color: var(--muted); }
+
+    .transfers-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .xfer-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px;
+      margin-bottom: 8px;
+    }
+    .xfer-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .xfer-from-badge {
+      background: var(--red-dim);
+      border: 1px solid var(--red);
+      color: var(--red);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .xfer-arrow { color: var(--muted); flex-shrink: 0; }
+    .xfer-to-badge {
+      background: var(--green-dim);
+      border: 1px solid var(--green);
+      color: var(--green);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .xfer-amount {
+      margin-left: auto;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--gold);
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+    .xfer-context {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .xfer-hint {
+      margin-top: 8px;
+      padding: 7px 10px;
+      background: var(--surface2);
+      border-radius: var(--r-sm);
+      font-size: 0.78rem;
+      color: var(--muted);
+      border-left: 2px solid var(--gold);
+    }
+    .xfer-hint strong { color: var(--gold); }
+
+    .no-xfer {
+      text-align: center;
+      padding: 32px 20px;
+      color: var(--muted);
+      font-size: 1.1rem;
+    }
+
+    .back-btn {
+      display: block;
+      width: 100%;
+      margin-top: 14px;
+      padding: 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .back-btn:active { background: var(--surface2); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>&#9824; Poker Settler</h1>
+</header>
+
+<!-- ─── Entry view ─── -->
+<div class="view active" id="entry-view">
+  <div style="padding: 16px 16px 0;">
+    <div id="players-list"></div>
+
+    <div class="add-row">
+      <button class="add-btn" id="add-btn" onclick="addPlayer()">+ Add player</button>
+    </div>
+
+    <div class="balance-bar" id="balance-bar">
+      <div class="balance-hint" id="balance-hint">Fill in all amounts</div>
+      <div class="balance-val" id="balance-val">–</div>
+    </div>
+
+    <button class="settle-btn" id="settle-btn" onclick="showResults()" disabled>
+      Settle Up ›
+    </button>
+    <div style="height: 32px;"></div>
+  </div>
+</div>
+
+<!-- ─── Results view ─── -->
+<div class="view" id="results-view">
+  <div style="padding: 16px;">
+    <button class="results-back" onclick="showView('entry-view')">&#8592; Edit</button>
+    <div class="standings-card">
+      <div class="standings-title">Final standings</div>
+      <div id="standings-list"></div>
+    </div>
+    <div id="transfers-list"></div>
+    <button class="back-btn" onclick="newGame()">&#8635; New game</button>
+    <div style="height: 24px;"></div>
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const MAX = 9;
+let players = []; // [{id, dir, amount}]
+let nextId = 1;
+
+function init() {
+  players = [];
+  nextId = 1;
+  document.getElementById('players-list').innerHTML = '';
+  for (let i = 0; i < 5; i++) addPlayer(/* silent */ true);
+  recalc();
+}
+
+// ─── Player management ───────────────────────────────────────────────────────
+function addPlayer(silent) {
+  if (players.length >= MAX) return;
+  const id = nextId++;
+  players.push({ id, dir: 'up', amount: null });
+
+  const el = document.createElement('div');
+  el.className = 'player-row';
+  el.id = 'row-' + id;
+  el.innerHTML = `
+    <span class="player-label" id="lbl-${id}">P${players.length}</span>
+    <div class="dir-toggle">
+      <button class="dir-btn up on"  id="up-${id}"  onclick="setDir(${id},'up')">+</button>
+      <button class="dir-btn down"   id="dn-${id}"  onclick="setDir(${id},'down')">−</button>
+    </div>
+    <input class="amt-input"
+      type="number" inputmode="decimal" min="0" step="1"
+      placeholder="0"
+      id="amt-${id}"
+      oninput="onAmount(${id}, this.value)">
+    <button class="remove-btn" onclick="removePlayer(${id})" aria-label="Remove">&#215;</button>`;
+  document.getElementById('players-list').appendChild(el);
+
+  document.getElementById('add-btn').disabled = players.length >= MAX;
+  if (!silent) {
+    document.getElementById('amt-' + id).focus();
+    recalc();
+  }
+}
+
+function removePlayer(id) {
+  if (players.length <= 2) return; // keep at least 2
+  players = players.filter(p => p.id !== id);
+  document.getElementById('row-' + id).remove();
+  // Re-label
+  players.forEach((p, i) => {
+    const lbl = document.getElementById('lbl-' + p.id);
+    if (lbl) lbl.textContent = 'P' + (i + 1);
+  });
+  document.getElementById('add-btn').disabled = players.length >= MAX;
+  recalc();
+}
+
+function setDir(id, dir) {
+  const p = players.find(p => p.id === id);
+  if (!p) return;
+  p.dir = dir;
+  document.getElementById('up-' + id).classList.toggle('on', dir === 'up');
+  document.getElementById('dn-' + id).classList.toggle('on', dir === 'down');
+  recalc();
+}
+
+function onAmount(id, val) {
+  const p = players.find(p => p.id === id);
+  if (!p) return;
+  const n = val.trim() === '' ? null : parseFloat(val);
+  p.amount = (n === null || isNaN(n) || n < 0) ? null : n;
+  recalc();
+}
+
+// ─── Balance check ────────────────────────────────────────────────────────────
+function getTotal() {
+  return players.reduce((s, p) => {
+    if (p.amount === null) return s;
+    return s + (p.dir === 'up' ? p.amount : -p.amount);
+  }, 0);
+}
+
+function recalc() {
+  const allFilled = players.every(p => p.amount !== null);
+  const barEl  = document.getElementById('balance-bar');
+  const valEl  = document.getElementById('balance-val');
+  const hintEl = document.getElementById('balance-hint');
+  const btn    = document.getElementById('settle-btn');
+
+  if (!allFilled) {
+    valEl.textContent = '–';
+    valEl.className   = 'balance-val';
+    hintEl.textContent = 'Fill in all amounts';
+    barEl.style.borderColor = '';
+    btn.disabled = true;
+    return;
+  }
+
+  const total   = Math.round(getTotal() * 100) / 100;
+  const balanced = Math.abs(total) < 0.01;
+
+  valEl.textContent = (total >= 0 ? '+' : '') + total.toFixed(2);
+  valEl.className   = 'balance-val ' + (balanced ? 'ok' : 'bad');
+
+  if (balanced) {
+    hintEl.textContent = '';
+    barEl.style.borderColor = 'var(--green-dim)';
+    btn.disabled = false;
+  } else {
+    const sign = total > 0 ? 'over' : 'short';
+    hintEl.textContent = `${Math.abs(total).toFixed(2)} ${sign} — check entries`;
+    barEl.style.borderColor = 'var(--red-dim)';
+    btn.disabled = true;
+  }
+}
+
+// ─── Settlement (minimise transfers) ─────────────────────────────────────────
+function calculateSettlements(balances) {
+  // balances: [{label, bal}]  bal positive = owed money, negative = owes money
+  const creds = balances.filter(p => p.bal >  0.005).map(p => ({...p})).sort((a,b) => b.bal - a.bal);
+  const debts = balances.filter(p => p.bal < -0.005).map(p => ({...p})).sort((a,b) => a.bal - b.bal);
+
+  const txns = [];
+  let ci = 0, di = 0;
+  while (ci < creds.length && di < debts.length) {
+    const amt = Math.min(creds[ci].bal, -debts[di].bal);
+    txns.push({
+      from:      debts[di].label,
+      to:        creds[ci].label,
+      fromBal:   debts[di].origBal,
+      toBal:     creds[ci].origBal,
+      amount:    Math.round(amt * 100) / 100,
+    });
+    creds[ci].bal -= amt;
+    debts[di].bal += amt;
+    if (creds[ci].bal < 0.005) ci++;
+    if (debts[di].bal > -0.005) di++;
+  }
+  return txns;
+}
+
+// Suggest rounding to nearest whole or .5 within ±0.2
+function roundingHint(amount) {
+  const candidates = [Math.floor(amount), Math.ceil(amount), Math.floor(amount) + 0.5];
+  return candidates
+    .map(t => ({ target: t, diff: Math.round((t - amount) * 10) / 10 }))
+    .filter(h => Math.abs(h.diff) >= 0.05 && Math.abs(h.diff) <= 0.2)
+    .sort((a,b) => Math.abs(a.diff) - Math.abs(b.diff))[0] || null;
+}
+
+function fmt(n) {
+  return n % 1 === 0 ? n.toFixed(0) : n.toFixed(1);
+}
+
+// ─── Results ──────────────────────────────────────────────────────────────────
+function showResults() {
+  const balances = players.map((p, i) => {
+    const bal = Math.round((p.dir === 'up' ? p.amount : -p.amount) * 100) / 100;
+    return { label: 'Player ' + (i + 1), origBal: bal, bal };
+  });
+
+  // Standings
+  const sorted = [...balances].sort((a,b) => b.origBal - a.origBal);
+  document.getElementById('standings-list').innerHTML = sorted.map(p => {
+    const cls = p.origBal > 0.005 ? 'up' : p.origBal < -0.005 ? 'down' : 'zero';
+    const sign = p.origBal > 0.005 ? '+' : '';
+    return `<div class="standing-row">
+      <span class="standing-who">${p.label}</span>
+      <span class="standing-amt ${cls}">${sign}${fmt(p.origBal)}</span>
+    </div>`;
+  }).join('');
+
+  // Transfers
+  const txns = calculateSettlements(balances);
+  const list = document.getElementById('transfers-list');
+
+  if (txns.length === 0) {
+    list.innerHTML = '<div class="no-xfer">&#9989; Everyone is square!</div>';
+  } else {
+    list.innerHTML = txns.map(t => {
+      const hint = roundingHint(t.amount);
+      let hintHtml = '';
+      if (hint) {
+        const word = hint.diff > 0 ? 'overpays' : 'underpays';
+        const by   = Math.abs(hint.diff);
+        hintHtml = `<div class="xfer-hint">Tip: round to <strong>${fmt(hint.target)}</strong> (${word} by ${fmt(by)}) for a cleaner number.</div>`;
+      }
+      return `<div class="xfer-card">
+        <div class="xfer-main">
+          <span class="xfer-from-badge">${t.from}</span>
+          <span class="xfer-arrow">&#8594;</span>
+          <span class="xfer-to-badge">${t.to}</span>
+          <span class="xfer-amount">${fmt(t.amount)}</span>
+        </div>
+        <div class="xfer-context">
+          <span>${t.from} was down ${fmt(Math.abs(t.fromBal))}</span>
+          <span>${t.to} was up ${fmt(t.toBal)}</span>
+        </div>
+        ${hintHtml}
+      </div>`;
+    }).join('');
+  }
+
+  showView('results-view');
+}
+
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function newGame() {
+  init();
+  showView('entry-view');
+}
+
+// ─── Tests (run in console: runTests()) ───────────────────────────────────────
+window.runTests = function() {
+  let pass = 0, fail = 0;
+
+  function check(label, got, want) {
+    const ok = JSON.stringify(got) === JSON.stringify(want);
+    console[ok ? 'log' : 'error']((ok ? '✓' : '✗') + ' ' + label, ok ? '' : {got, want});
+    ok ? pass++ : fail++;
+  }
+
+  function settle(rawBalances) {
+    const bs = rawBalances.map((b, i) => ({ label: 'P'+(i+1), origBal: b, bal: b }));
+    return calculateSettlements(bs).map(t => ({ from: t.from, to: t.to, amount: t.amount }));
+  }
+
+  // 1. Simple 2-player
+  check('2p simple',
+    settle([-10, 10]),
+    [{ from:'P1', to:'P2', amount:10 }]);
+
+  // 2. Perfect 3-way: P1 down 20, P2 up 10, P3 up 10
+  check('3p split',
+    settle([-20, 10, 10]),
+    [{ from:'P1', to:'P2', amount:10 }, { from:'P1', to:'P3', amount:10 }]);
+
+  // 3. Chain: minimise to 2 transfers not 3
+  // P1=-15, P2=+5, P3=+5, P4=+5
+  const r3 = settle([-15, 5, 5, 5]);
+  check('4p chain transfer count', r3.length, 3); // 3 transfers needed here since one debtor, 3 creditors
+
+  // 4. Two debtors, one creditor
+  check('2 debtors 1 creditor',
+    settle([-5, -5, 10]),
+    [{ from:'P1', to:'P3', amount:5 }, { from:'P2', to:'P3', amount:5 }]);
+
+  // 5. Decimal amounts
+  check('decimal',
+    settle([-14.5, 14.5]),
+    [{ from:'P1', to:'P2', amount:14.5 }]);
+
+  // 6. Cross-settlement: P1=-15, P2=+20, P3=-10, P4=+5
+  // creds sorted: P2(20), P4(5); debts sorted: P1(-15), P3(-10)
+  // P1->P2: 15, P3->P2: 5, P3->P4: 5
+  const r5 = settle([-15, 20, -10, 5]);
+  check('cross 4p count', r5.length, 3);
+  check('cross 4p total amount',
+    r5.reduce((s,t)=>s+t.amount,0), 25);
+
+  // 7. Rounding hint: 14.3 → suggest 14 (diff -0.3, too big) or 14.5 (diff +0.2, ok)
+  const h1 = roundingHint(14.3);
+  check('round hint 14.3 target', h1 && h1.target, 14.5);
+
+  // 8. No hint when already clean
+  check('round hint 15', roundingHint(15), null);
+  check('round hint 14.5', roundingHint(14.5), null);
+
+  // 9. All-zero should produce no transactions
+  check('all zero', settle([0,0,0]), []);
+
+  // 10. Everyone balanced
+  check('everyone balanced total', settle([-10,5,3,2]).reduce((s,t)=>s+t.amount,0), 10);
+
+  console.log(`\n${pass} passed, ${fail} failed`);
+  return { pass, fail };
+};
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
