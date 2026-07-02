@@ -63,14 +63,23 @@
       margin-bottom: 8px;
     }
 
-    .player-label {
-      font-size: 0.8rem;
-      color: var(--muted);
-      font-weight: 600;
-      width: 52px;
+    .player-name-input {
+      width: 64px;
       flex-shrink: 0;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid transparent;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
       text-align: center;
+      outline: none;
+      padding: 4px 2px;
+      transition: border-color 0.15s;
     }
+    .player-name-input:hover { border-bottom-color: var(--border); }
+    .player-name-input:focus { border-bottom-color: var(--gold); }
 
     .dir-toggle {
       display: flex;
@@ -366,28 +375,30 @@
 <script>
 // ─── State ───────────────────────────────────────────────────────────────────
 const MAX = 9;
-let players = []; // [{id, dir, amount}]
+const DEFAULT_NAMES = ['Amogh', 'Shub', 'Ashwin', 'Navin', 'AJ', 'Keerti'];
+let players = []; // [{id, name, dir, amount}]
 let nextId = 1;
 
 function init() {
   players = [];
   nextId = 1;
   document.getElementById('players-list').innerHTML = '';
-  for (let i = 0; i < 5; i++) addPlayer(/* silent */ true);
+  for (let i = 0; i < DEFAULT_NAMES.length; i++) addPlayer(true, DEFAULT_NAMES[i]);
   recalc();
 }
 
 // ─── Player management ───────────────────────────────────────────────────────
-function addPlayer(silent) {
+function addPlayer(silent, name) {
   if (players.length >= MAX) return;
   const id = nextId++;
-  players.push({ id, dir: 'up', amount: null });
+  const playerName = name !== undefined ? name : '';
+  players.push({ id, name: playerName, dir: 'up', amount: null });
 
   const el = document.createElement('div');
   el.className = 'player-row';
   el.id = 'row-' + id;
   el.innerHTML = `
-    <span class="player-label" id="lbl-${id}">P${players.length}</span>
+    <input class="player-name-input" type="text" id="lbl-${id}" value="${playerName}" placeholder="Name" oninput="onName(${id}, this.value)">
     <div class="dir-toggle">
       <button class="dir-btn up on"  id="up-${id}"  onclick="setDir(${id},'up')">+</button>
       <button class="dir-btn down"   id="dn-${id}"  onclick="setDir(${id},'down')">−</button>
@@ -411,11 +422,6 @@ function removePlayer(id) {
   if (players.length <= 2) return; // keep at least 2
   players = players.filter(p => p.id !== id);
   document.getElementById('row-' + id).remove();
-  // Re-label
-  players.forEach((p, i) => {
-    const lbl = document.getElementById('lbl-' + p.id);
-    if (lbl) lbl.textContent = 'P' + (i + 1);
-  });
   document.getElementById('add-btn').disabled = players.length >= MAX;
   recalc();
 }
@@ -435,6 +441,12 @@ function onAmount(id, val) {
   const n = val.trim() === '' ? null : parseFloat(val);
   p.amount = (n === null || isNaN(n) || n < 0) ? null : n;
   recalc();
+}
+
+function onName(id, val) {
+  const p = players.find(p => p.id === id);
+  if (!p) return;
+  p.name = val;
 }
 
 // ─── Balance check ────────────────────────────────────────────────────────────
@@ -513,7 +525,7 @@ function fmt(n) {
 function showResults() {
   const balances = players.map((p, i) => {
     const bal = Math.round((p.dir === 'up' ? p.amount : -p.amount) * 100) / 100;
-    return { label: 'Player ' + (i + 1), origBal: bal, bal };
+    return { label: p.name || ('P' + (i + 1)), origBal: bal, bal };
   });
 
   // Standings
