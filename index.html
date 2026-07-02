@@ -120,6 +120,12 @@
       padding: 8px 4px;
       line-height: 1;
       flex-shrink: 0;
+      min-width: 44px;
+      min-height: 44px;
+      margin-left: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     .remove-btn:active { color: var(--red); }
 
@@ -292,16 +298,6 @@
       font-size: 0.72rem;
       color: var(--muted);
     }
-    .xfer-hint {
-      margin-top: 8px;
-      padding: 7px 10px;
-      background: var(--surface2);
-      border-radius: var(--r-sm);
-      font-size: 0.78rem;
-      color: var(--muted);
-      border-left: 2px solid var(--gold);
-    }
-    .xfer-hint strong { color: var(--gold); }
 
     .no-xfer {
       text-align: center;
@@ -508,14 +504,6 @@ function calculateSettlements(balances) {
   return txns;
 }
 
-// Suggest rounding to nearest whole or .5 within ±0.2
-function roundingHint(amount) {
-  const candidates = [Math.floor(amount), Math.ceil(amount), Math.floor(amount) + 0.5];
-  return candidates
-    .map(t => ({ target: t, diff: Math.round((t - amount) * 10) / 10 }))
-    .filter(h => Math.abs(h.diff) >= 0.05 && Math.abs(h.diff) <= 0.2)
-    .sort((a,b) => Math.abs(a.diff) - Math.abs(b.diff))[0] || null;
-}
 
 function fmt(n) {
   return n % 1 === 0 ? n.toFixed(0) : n.toFixed(1);
@@ -547,13 +535,6 @@ function showResults() {
     list.innerHTML = '<div class="no-xfer">&#9989; Everyone is square!</div>';
   } else {
     list.innerHTML = txns.map(t => {
-      const hint = roundingHint(t.amount);
-      let hintHtml = '';
-      if (hint) {
-        const word = hint.diff > 0 ? 'overpays' : 'underpays';
-        const by   = Math.abs(hint.diff);
-        hintHtml = `<div class="xfer-hint">Tip: round to <strong>${fmt(hint.target)}</strong> (${word} by ${fmt(by)}) for a cleaner number.</div>`;
-      }
       return `<div class="xfer-card">
         <div class="xfer-main">
           <span class="xfer-from-badge">${t.from}</span>
@@ -565,7 +546,6 @@ function showResults() {
           <span>${t.from} was down ${fmt(Math.abs(t.fromBal))}</span>
           <span>${t.to} was up ${fmt(t.toBal)}</span>
         </div>
-        ${hintHtml}
       </div>`;
     }).join('');
   }
@@ -632,18 +612,10 @@ window.runTests = function() {
   check('cross 4p total amount',
     r5.reduce((s,t)=>s+t.amount,0), 25);
 
-  // 7. Rounding hint: 14.3 → suggest 14 (diff -0.3, too big) or 14.5 (diff +0.2, ok)
-  const h1 = roundingHint(14.3);
-  check('round hint 14.3 target', h1 && h1.target, 14.5);
-
-  // 8. No hint when already clean
-  check('round hint 15', roundingHint(15), null);
-  check('round hint 14.5', roundingHint(14.5), null);
-
-  // 9. All-zero should produce no transactions
+  // 7. All-zero should produce no transactions
   check('all zero', settle([0,0,0]), []);
 
-  // 10. Everyone balanced
+  // 8. Everyone balanced
   check('everyone balanced total', settle([-10,5,3,2]).reduce((s,t)=>s+t.amount,0), 10);
 
   console.log(`\n${pass} passed, ${fail} failed`);
